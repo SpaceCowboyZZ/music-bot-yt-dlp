@@ -1,5 +1,12 @@
 import re
+import pytube
+import discord
+from discord.ext import commands
+import os
+import asyncio
 
+
+#regex to validate youtube link
 def youtube_url_validation(url):
    youtube_regex = (
        r'(https?://)?(www\.)?'
@@ -11,3 +18,8 @@ def youtube_url_validation(url):
        return True
    else:
        return False
+   
+async def disconnect_if_inactive(voice_client, timeout=900):
+    await asyncio.sleep(timeout)
+    if not voice_client.is_playing() and not voice_client.is_paused():
+        await voice_client.disconnect()
