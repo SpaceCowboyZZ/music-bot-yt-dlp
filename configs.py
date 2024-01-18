@@ -19,7 +19,7 @@ def youtube_url_validation(url):
    else:
        return False
    
-async def disconnect_if_inactive(voice_client, timeout=900):
+async def disconnect_if_inactive(voice_client, timeout=600):
     await asyncio.sleep(timeout)
     if not voice_client.is_playing() and not voice_client.is_paused():
         await voice_client.disconnect()
