@@ -165,7 +165,7 @@ async def next(ctx):
     
     voice_client = discord.utils.get(bot.voice_clients, guild=ctx.guild)
     
-    if (voice_client.is_playing() or voice_client.is_paused()) and len(queue) >= 0:
+    if (voice_client.is_playing() or voice_client.is_paused()) and len(queue) > 0:
         voice_client.stop()
         await asyncio.sleep(0.5)
         if filename:
