@@ -19,6 +19,7 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 inactive_task = None
 filename = None
 paused_at = None
+play_task = None
 queue = []
 
 
@@ -26,7 +27,8 @@ queue = []
 
 @bot.command(name='play')
 async def play(ctx, *, search_query):
-    global paused_at, filename, inactive_task, video_id, queue
+    global paused_at, filename, inactive_task, video_id, queue, play_task
+    
     #checks if bot already connected
     voice_client = discord.utils.get(bot.voice_clients, guild=ctx.guild)
     if voice_client is not None and voice_client.is_playing():
@@ -34,28 +36,29 @@ async def play(ctx, *, search_query):
         queue.append(search_query)
         await ctx.send('adicionado a fila')
         return
-    
+
     #checks if there is any paused audio
     if voice_client is not None and voice_client.is_paused():
-        if (datetime.now() - paused_at).total_seconds() < 6:
+        if ((datetime.now() - paused_at).total_seconds() < 600):
             queue.append(search_query)
             await ctx.send('adicionado a fila, use "!continue" ou "!next"')
             return
-        
-        else:
-            if (datetime.now() - paused_at).total_seconds() > 6:
-                voice_client.stop()
-                await asyncio.sleep(0.5)
-                if filename:
-                    try:
-                        os.remove(filename)
-                    except FileNotFoundError:
-                        pass
-                    except PermissionError as e:
+        if ((datetime.now() - paused_at).total_seconds() > 600):
+            voice_client.stop()
+            await asyncio.sleep(0.5)
+            if filename:
+                try:
+                    os.remove(filename)
+                except FileNotFoundError:
+                    pass
+                except PermissionError as e:
                         await ctx.send(f'error: unable to delete file>    {e}  ')
-                        return
+                        
             filename = None
             paused_at = datetime.now()
+    
+    if play_task is None or play_task.done():
+        play_task = asyncio.create_task(play(ctx, search_query))
     
     #conects to voice if not connected already, also sends message if you are not in a voice chat
     if not voice_client:
@@ -65,7 +68,6 @@ async def play(ctx, *, search_query):
         else:
             await ctx.send('tu não ta no voice chat nengue.')
             return
-
     if youtube_url_validation(search_query):
         video_url = search_query
     else:
@@ -76,7 +78,7 @@ async def play(ctx, *, search_query):
         first = video_id[0] if video_id else None
         if not first:
             await ctx.send('não encrontrado')
-            return
+
         else:
             # Construct the full YouTube URL
             video_url = f'https://www.youtube.com/watch?v={first}'
@@ -95,10 +97,11 @@ async def play(ctx, *, search_query):
     while voice_client.is_playing():
         await asyncio.sleep(1)
     if not voice_client.is_paused():
-        try:
-            os.remove(filename)
-        except FileNotFoundError:
-            pass
+        if filename is not None:
+            try:
+                os.remove(filename)
+            except FileNotFoundError:
+                pass
      
     # If there are songs in the queue, play the next song   
     if queue:
@@ -122,65 +125,102 @@ async def pause(ctx):
         voice_client.pause()
         paused_at = datetime.now()
         await ctx.send('audio pausado')
+
     else:
         await ctx.send('nenhum audio tocando no momento')
+
+
     
 
 
 @bot.command(name='continue') #done
 async def Continue(ctx):
-    global paused_at, filename
+    global paused_at, filename, play_task
     
     voice_client = discord.utils.get(bot.voice_clients, guild=ctx.guild)
     
-    if voice_client.is_paused():
-        if (datetime.now() - paused_at).total_seconds() < 6:
+    if (voice_client.is_paused() and (datetime.now() - paused_at).total_seconds() < 600):
             voice_client.resume()
             paused_at = datetime.now()
-            await ctx.send('resumindo audio')      
+            await ctx.send('resumindo audio')
+            return
             
-        if paused_at is not None and (datetime.now() - paused_at).total_seconds() > 6:
-            voice_client.stop()
-            await asyncio.sleep(0.5)
-            if filename:
-                try:
-                    os.remove(filename)
-                    await ctx.send('nenhum audio pausado no momento')
-                except FileNotFoundError:
-                    pass
-                except PermissionError as e:
-                    await ctx.send(f'error: unable to delete file>    {e}  ')
+    if (paused_at is not None and (datetime.now() - paused_at).total_seconds() > 600):
+        voice_client.stop()
+        await asyncio.sleep(0.5)
+        if filename is not None:
+            try:
+                os.remove(filename)
+                await ctx.send('nenhum audio pausado no momento') 
+                return
+            except FileNotFoundError:
+                pass
+            except PermissionError as e:
+                await ctx.send(f'error: unable to delete file>    {e}  ')
     
-    elif voice_client.is_playing():
+    if play_task is not None and not play_task.done():
         await ctx.send('audio já está tocando')
-        
+
     else:
         await ctx.send('nenhum audio pausado no momento')
+
     
     
     
-@bot.command(name='next')
+@bot.command(name='next') #works
 async def next(ctx):
-    global filename, queue
+    global filename, queue, paused_at
     
     voice_client = discord.utils.get(bot.voice_clients, guild=ctx.guild)
     
     if (voice_client.is_playing() or voice_client.is_paused()) and len(queue) > 0:
         voice_client.stop()
         await asyncio.sleep(0.5)
-        if filename:
+        if filename is not None:
             try:
                 os.remove(filename)
             except FileNotFoundError:
                 pass
             except PermissionError as e:
                 await ctx.send(f'error: unable to delete file>   {e} ')
+        filename = None
+        paused_at = datetime.now()
         
-        if queue:
-            next_song = queue.pop(0)
-            await ctx.invoke(bot.get_command('play'), search_query= next_song)
+    if queue:
+        next_song = queue.pop(0)
+        await ctx.invoke(bot.get_command('play'), search_query= next_song)
+        return
     else:
         await ctx.send('nenhuma musica na fila')
+
+        
+        
+        
+@bot.command(name='stop')
+async def stop(ctx):
+    global filename, queue, paused_at, play_task
+    voice_client = discord.utils.get(bot.voice_clients, guild=ctx.guild)
+    if voice_client is not None and (voice_client.is_playing() or voice_client.is_paused()):
+        voice_client.stop()
+        await asyncio.sleep(0.5)
+        if filename is not None:
+            try:
+                os.remove(filename)
+            except FileNotFoundError as e:
+                await ctx.send(f'error: unable to delete file> {e}')
+                return
+        filename = None
+        queue.clear()
+        await ctx.send('todos os videos na fila foram parados')
+        
+        # Cancel any pending tasks related to the play command
+        if play_task is not None and not play_task.done():
+            play_task.cancel()
+        return
+    else:
+        await ctx.send('ta doido nengue, tem nada pra parar não')
+
+        
         
     
 
