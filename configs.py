@@ -1,8 +1,4 @@
 import re
-import pytube
-import discord
-from discord.ext import commands
-import os
 import asyncio
 
 
