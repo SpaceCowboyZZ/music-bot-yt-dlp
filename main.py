@@ -33,6 +33,7 @@ class music(commands.Cog):
         
         #checks if bot already connected
         voice_client = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
+        
         if voice_client is not None and voice_client.is_playing():
             # If it is, add the new song to the queue
             queue.append(search_query)
@@ -43,7 +44,8 @@ class music(commands.Cog):
         if voice_client is not None and voice_client.is_paused():
             if ((datetime.now() - paused_at).total_seconds() < 600):
                 queue.append(search_query)
-                await ctx.send('adicionado a fila, use "!continue" ou "!next"')
+                if queue:
+                    await ctx.send('adicionado a fila, use "!continue" ou "!next"')
                 return
             if ((datetime.now() - paused_at).total_seconds() > 600):
                 voice_client.stop()
@@ -87,7 +89,16 @@ class music(commands.Cog):
         
         # Use pytube to download the audio    
         yt = pytube.YouTube(video_url)
-        stream = max(yt.streams.filter(only_audio=True), key=lambda s: s.abr)
+        
+        
+        max_bitrate = 128 # Maximum allowed bitrate in kbps
+        selected_stream = None
+        for stream in yt.streams.filter(only_audio=True):
+            abr = int(stream.abr) if stream.abr.isdigit() else 0
+        if abr <= max_bitrate and (selected_stream is None or abr > int(selected_stream.abr)):
+            selected_stream = stream
+        stream = selected_stream
+        # stream = max(yt.streams.filter(only_audio=True), key=lambda s: s.abr)
         out_file = stream.download(filename='temp')
         filename = os.path.join('temp', out_file)
         
@@ -108,7 +119,9 @@ class music(commands.Cog):
         # If there are songs in the queue, play the next song   
         if queue:
             next_song = queue.pop(0)
-            await ctx.invoke(self.bot.get_command('play'), search_query=next_song)
+            voice_client = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
+            if not voice_client.is_paused():
+                await ctx.invoke(self.bot.get_command('play'), search_query=next_song)
                 
         #checks if the there is an instance of inactivity
         if inactive_task is not None:
@@ -136,13 +149,14 @@ class music(commands.Cog):
         
     @commands.command(name='continue') #done
     async def Continue(self, ctx):
-        global paused_at, filename, play_task
+        global paused_at, filename, play_task, should_stop
         
         voice_client = discord.utils.get(self.bot.voice_clients, guild=ctx.guild)
         
         if (voice_client.is_paused() and (datetime.now() - paused_at).total_seconds() < 600):
                 voice_client.resume()
                 paused_at = datetime.now()
+                should_stop = True
                 await ctx.send('resumindo audio')
                 return
                 
