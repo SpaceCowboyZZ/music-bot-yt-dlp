@@ -2,16 +2,9 @@ import discord
 import yt_dlp
 from discord.ext import commands
 import asyncio
-import logging
-import sys
 from concurrent.futures import ThreadPoolExecutor
 
 
-logging.basicConfig(
-    stream=sys.stdout,
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -45,7 +38,7 @@ async def embeded(ctx, msg, thumbna):
         description=f'{msg}'
             )      
     embed.set_author(name='Tocador') 
-                
+
     embed.set_image(url=thumbna)
     
     await ctx.send(embed=embed)
@@ -150,8 +143,18 @@ async def play(ctx, *, search_query):
     if not voice_client:
         return
     
-    if '/playlist?' in search_query and not '/watch?' in search_query:
-        await ctx.send('pegando informações da playlist, pode demorar um pouco, se vc usar "!play" novamente, a musica pode entrar na fila antes da playlist...')
+    if '&list=' in search_query or '&start_radio=' in search_query:
+        embed = (discord.Embed(title='Erro', description='Só aceito Playlist ou video seu fudido', colour=discord.Colour.dark_orange()))
+        embed.set_image(url='https://i.imgur.com/sgKBZ5Q.png')
+        
+        await ctx.send(embed=embed)
+        return
+    
+    elif '/playlist?' in search_query and not '/watch?' in search_query:
+        embed = discord.Embed(title='Aviso', description='pegando informações da playlist, pode demorar um pouco, se vc usar "!play" novamente, a musica pode entrar na fila antes da playlist...',
+                              colour=discord.Colour.yellow())
+        embed.set_image(url='https://i.imgur.com/yw6NtvQ.png')
+        await ctx.send(embed=embed)
         data1, url, tn = await playlist(ctx, search_query)
         
         data = data1.copy()
@@ -170,8 +173,8 @@ async def play(ctx, *, search_query):
         data1, url, tn = await search_video(ctx, search_query)
         
         data = data1.copy()
-        actual_url.append(url)
-        thumb_url.append(tn)
+        actual_url.extend(url)
+        thumb_url.extend(tn)
         
         if bot.play_status or len(queue) > 0:
             queue.append(data)
@@ -184,8 +187,8 @@ async def play(ctx, *, search_query):
         data1, url, tn = await search_video(ctx, search_query)
         
         data = data1.copy()
-        actual_url.append(url)
-        thumb_url.append(tn)
+        actual_url.extend(url)
+        thumb_url.extend(tn)
 
         if bot.play_status or len(queue) > 0:
             queue.append(data)
@@ -286,7 +289,10 @@ async def stop(ctx):
     
     if bot.play_status or voice_client.is_paused():
         queue.clear()
+        actual_url.clear()
+        thumb_url.clear()
         voice_client.stop()
+        bot.play_status = False
         embed = discord.Embed(title='Parando', description='Todas as musicas foram removidas da fila', colour=discord.Colour.brand_red())
         await ctx.send(embed=embed)
     else:
