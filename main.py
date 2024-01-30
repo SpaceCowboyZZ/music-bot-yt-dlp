@@ -28,6 +28,8 @@ bot.play_status = False
 
 bot.in_chat = None
 
+bot.doom = False
+
 executor = ThreadPoolExecutor(max_workers=5)
 
 
@@ -135,7 +137,7 @@ async def on_voice_state_update(member, before, after):
 
 
 
-@bot.command(name='play')
+@bot.command(name='play', help='comando para iniciar a pesquisa de musica ou playlist, exemplo: !play Leno Brega')
 @commands.cooldown(1, 2, commands.BucketType.user)
 async def play(ctx, *, search_query):
     global queue, actual_url, thumb_url
@@ -143,6 +145,7 @@ async def play(ctx, *, search_query):
     if not voice_client:
         return
     
+    bot.doom = False
     if '&list=' in search_query or '&start_radio=' in search_query:
         embed = (discord.Embed(title='Erro', description='Só aceito Playlist ou video seu fudido', colour=discord.Colour.dark_orange()))
         embed.set_image(url='https://i.imgur.com/sgKBZ5Q.png')
@@ -156,10 +159,17 @@ async def play(ctx, *, search_query):
         embed.set_image(url='https://i.imgur.com/yw6NtvQ.png')
         await ctx.send(embed=embed)
         data1, url, tn = await playlist(ctx, search_query)
-        
+            
         data = data1.copy()
         actual_url.extend(url)
         thumb_url.extend(tn)
+    
+        if bot.doom: #lazy check to make sure no thread task are sent to queue after using !stop
+            data = None
+            actual_url.clear()
+            thumb_url.clear()
+            queue.clear()
+            return
     
         if bot.play_status or len(queue) > 0:
             queue.extend(data)
@@ -186,9 +196,12 @@ async def play(ctx, *, search_query):
     else:
         data1, url, tn = await search_video(ctx, search_query)
         
+        """for some reason those only work if i use append()"""
         data = data1.copy()
-        actual_url.extend(url)
-        thumb_url.extend(tn)
+        actual_url.append(url)
+        thumb_url.append(tn)
+        print(thumb_url)
+        print(actual_url)
 
         if bot.play_status or len(queue) > 0:
             queue.append(data)
@@ -197,7 +210,7 @@ async def play(ctx, *, search_query):
         else:
             queue.append(data)
             await play_now(ctx, url=queue.pop(0))
-        
+     
         
         
 async def play_now(ctx, url):
@@ -228,7 +241,7 @@ async def play_now(ctx, url):
         
  
         
-@bot.command(name='next')
+@bot.command(name='next', help='pula a musica que está tocando ou pausada no momento, exemplo: !next')
 @commands.cooldown(1, 2, commands.BucketType.user)
 async def next(ctx):
     voice_client = await join(ctx)
@@ -243,7 +256,7 @@ async def next(ctx):
     
                 
 
-@bot.command(name='pause')
+@bot.command(name='pause', help='pausa a música atual, exemplo: !pause')
 @commands.cooldown(1, 2, commands.BucketType.user)
 async def pause(ctx):
     voice_client = await join(ctx)
@@ -262,7 +275,7 @@ async def pause(ctx):
 
       
         
-@bot.command(name='continue')
+@bot.command(name='continue', help='continua a música que está pausada, exemplo: !continue')
 @commands.cooldown(1, 2, commands.BucketType.user)
 async def Continue(ctx):
     voice_client = await join(ctx)
@@ -280,13 +293,14 @@ async def Continue(ctx):
 
         
            
-@bot.command(name='stop')
+@bot.command(name='stop', help='comando usado para parar o bot e limpa a fila de musicas, exemplo: !stop')
 @commands.cooldown(1, 2, commands.BucketType.user)
 async def stop(ctx):
     voice_client = await join(ctx)
     if not voice_client:
         return
-    
+
+    bot.doom = True
     if bot.play_status or voice_client.is_paused():
         queue.clear()
         actual_url.clear()
@@ -303,15 +317,15 @@ async def stop(ctx):
 
 class MyHelp(commands.HelpCommand):
     async def send_bot_help(self, mapping):
-        embed = discord.Embed(title='Help', colour= discord.Colour.gold())
-        for cog, commands in mapping.items():
-           command_signatures = [self.get_command_signature(c) for c in commands]
-           if command_signatures:
-                cog_name = getattr(cog, "qualified_name", "Comandos")
-                embed.add_field(name=cog_name, value="\n".join(command_signatures), inline=False)
-
-        channel = self.get_destination()
-        await channel.send(embed=embed)
+        embed = discord.Embed(title="Help", colour=discord.Colour.gold())
+        for command in self.context.bot.commands:
+            embed.add_field(name=f"{command.name}", value=command.help, inline=False)
+        await self.get_destination().send(embed=embed)
+        
+    async def send_command_help(self, command):
+        embed = discord.Embed(title=f"Ajuda para: {command.qualified_name}", description=command.help, colour=discord.Colour.gold())
+        await self.get_destination().send(embed=embed)
+        
 
 bot.help_command = MyHelp()
 
