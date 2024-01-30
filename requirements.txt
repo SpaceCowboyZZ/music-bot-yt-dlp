@@ -2,3 +2,4 @@ discord.py
 yt-dlp
 ffmpeg
 asyncio
+PyNaCl
