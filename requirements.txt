@@ -1,0 +1,3 @@
+discord
+yt-dlp
+asyncio
