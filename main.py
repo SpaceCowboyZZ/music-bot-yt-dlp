@@ -107,10 +107,12 @@ async def join(ctx):
             bot.in_chat = voice_channel  
             
         elif not voice_client:
-            await ctx.send('tu não ta no voice chat nengue.')
+            embed = discord.Embed(title='Erro', description='tu não ta no voice chat nengue', colour=discord.Colour.brand_red())
+            await ctx.send(embed=embed)
         
     elif ctx.author.voice.channel != bot.in_chat:
-        await ctx.send("não estamos no mesmo voice chat seu baiano.")
+        embed = discord.Embed(title='Erro', description='Não estamos no mesmo voice chat nengue', colour=discord.Colour.brand_red())
+        await ctx.send(embed=embed)
         return
     
     return voice_client
