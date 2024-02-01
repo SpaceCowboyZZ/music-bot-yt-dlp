@@ -202,8 +202,6 @@ async def play(ctx, *, search_query):
         data = data1.copy()
         actual_url.append(url)
         thumb_url.append(tn)
-        print(thumb_url)
-        print(actual_url)
 
         if bot.play_status or len(queue) > 0:
             queue.append(data)
