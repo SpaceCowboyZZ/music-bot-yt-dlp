@@ -5,7 +5,6 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
 
-
 intents = discord.Intents.default()
 intents.message_content = True
 intents.guilds = True
@@ -30,13 +29,13 @@ bot.in_chat = None
 
 bot.doom = False
 
-executor = ThreadPoolExecutor(max_workers=5)
+executor = ThreadPoolExecutor(max_workers=4)
 
 
 async def embeded(ctx, msg, thumbna):
     embed= discord.Embed(
         colour=discord.Colour.brand_green(),
-        title='tocando agora:',
+        title='Playing Now:',
         description=f'{msg}'
             )      
     embed.set_author(name='Tocador') 
@@ -58,7 +57,6 @@ async def search_video(ctx, urlq):
                 'noplaylist': True,
                 'verbose': True
     }
-
     yt_search = yt_dlp.YoutubeDL(yt_opts)
     loop = asyncio.get_event_loop()
     data = await loop.run_in_executor(executor, lambda: yt_search.extract_info(url=urlq, download=False))
@@ -107,11 +105,11 @@ async def join(ctx):
             bot.in_chat = voice_channel  
             
         elif not voice_client:
-            embed = discord.Embed(title='Erro', description='tu não ta no voice chat nengue', colour=discord.Colour.brand_red())
+            embed = discord.Embed(title='Error', description='You are not in a voice channel', colour=discord.Colour.brand_red())
             await ctx.send(embed=embed)
         
     elif ctx.author.voice.channel != bot.in_chat:
-        embed = discord.Embed(title='Erro', description='Não estamos no mesmo voice chat nengue', colour=discord.Colour.brand_red())
+        embed = discord.Embed(title='Error', description='We are not in the same voice channel', colour=discord.Colour.brand_red())
         await ctx.send(embed=embed)
         return
     
@@ -139,7 +137,7 @@ async def on_voice_state_update(member, before, after):
 
 
 
-@bot.command(name='play', help='comando para iniciar a pesquisa de musica ou playlist, exemplo: !play Leno Brega')
+@bot.command(name='play', help='Command for searching videos and Playlist: !play Leno Brega')# note: for playlist use only playlist urls like: https://www.youtube.com/playlist?list=PLCbw7XKNtw1iZsT7-VHj1JJKhFlgOVHNB
 @commands.cooldown(1, 2, commands.BucketType.user)
 async def play(ctx, *, search_query):
     global queue, actual_url, thumb_url
@@ -149,16 +147,14 @@ async def play(ctx, *, search_query):
     
     bot.doom = False
     if '&list=' in search_query or '&start_radio=' in search_query:
-        embed = (discord.Embed(title='Erro', description='Só aceito Playlist ou video seu fudido', colour=discord.Colour.dark_orange()))
-        embed.set_image(url='https://i.imgur.com/sgKBZ5Q.png')
+        embed = (discord.Embed(title='Error', description='Url format not supported', colour=discord.Colour.dark_orange()))
         
         await ctx.send(embed=embed)
         return
     
     elif '/playlist?' in search_query and not '/watch?' in search_query:
-        embed = discord.Embed(title='Aviso', description='pegando informações da playlist, pode demorar um pouco, se vc usar "!play" novamente, a musica pode entrar na fila antes da playlist...',
+        embed = discord.Embed(title='Warning:', description='getting information from the playlist, it may take a while, if you use "!play" again, the song may be queued before the playlist...',
                               colour=discord.Colour.yellow())
-        embed.set_image(url='https://i.imgur.com/yw6NtvQ.png')
         await ctx.send(embed=embed)
         data1, url, tn = await playlist(ctx, search_query)
             
@@ -166,7 +162,7 @@ async def play(ctx, *, search_query):
         actual_url.extend(url)
         thumb_url.extend(tn)
     
-        if bot.doom: #lazy check to make sure no thread task are sent to queue after using !stop
+        if bot.doom: #lazy check to make sure no thread task aren't sent to queue after using !stop
             data = None
             actual_url.clear()
             thumb_url.clear()
@@ -175,7 +171,7 @@ async def play(ctx, *, search_query):
     
         if bot.play_status or len(queue) > 0:
             queue.extend(data)
-            embed = discord.Embed(title='Adicionado a fila', colour= discord.Colour.blue())
+            embed = discord.Embed(title='Added to queue', colour= discord.Colour.blue())
             await ctx.send(embed=embed)      
         else:
             queue.extend(data)
@@ -190,22 +186,21 @@ async def play(ctx, *, search_query):
         
         if bot.play_status or len(queue) > 0:
             queue.append(data)
-            embed = discord.Embed(title='Adicionado a fila', colour= discord.Colour.blue())
+            embed = discord.Embed(title='Added to queue', colour= discord.Colour.blue())
             await ctx.send(embed=embed)
         else:
             queue.append(data)
             await play_now(ctx, url=queue.pop(0))
     else:
         data1, url, tn = await search_video(ctx, search_query)
-        
-        """for some reason those only work if i use append()"""
+
         data = data1.copy()
         actual_url.append(url)
         thumb_url.append(tn)
 
         if bot.play_status or len(queue) > 0:
             queue.append(data)
-            embed = discord.Embed(title='Adicionado a fila', colour= discord.Colour.blue())
+            embed = discord.Embed(title='Added to queue', colour= discord.Colour.blue())
             await ctx.send(embed=embed)
         else:
             queue.append(data)
@@ -241,7 +236,7 @@ async def play_now(ctx, url):
         
  
         
-@bot.command(name='next', help='pula a musica que está tocando ou pausada no momento, exemplo: !next')
+@bot.command(name='next', help='skips the song that is currently playing or paused.')
 @commands.cooldown(1, 2, commands.BucketType.user)
 async def next(ctx):
     voice_client = await join(ctx)
@@ -251,12 +246,12 @@ async def next(ctx):
     if voice_client and (voice_client.is_playing() or voice_client.is_paused()):
         voice_client.stop()
     else:
-        embed = discord.Embed(title="Erro", description="Nada tocando no momento", color=discord.Colour.brand_red())
+        embed = discord.Embed(title="Error", description="No songs playing.", color=discord.Colour.brand_red())
         await ctx.send(embed=embed)          
     
                 
 
-@bot.command(name='pause', help='pausa a música atual, exemplo: !pause')
+@bot.command(name='pause', help='pause the current song.')
 @commands.cooldown(1, 2, commands.BucketType.user)
 async def pause(ctx):
     voice_client = await join(ctx)
@@ -265,17 +260,17 @@ async def pause(ctx):
         
     if voice_client.is_playing():
         voice_client.pause()
-        embed = discord.Embed(title='Pausado', color=discord.Colour.blue())
+        embed = discord.Embed(title='Paused', color=discord.Colour.blue())
         await ctx.send(embed=embed)
         return
     else:
-        embed = discord.Embed(title="Erro", description="Nada tocando no momento", color=discord.Colour.brand_red())
+        embed = discord.Embed(title="Error", description="No songs playing.", color=discord.Colour.brand_red())
         await ctx.send(embed=embed) 
         return
 
       
         
-@bot.command(name='continue', help='continua a música que está pausada, exemplo: !continue')
+@bot.command(name='continue', help='continue the song that is paused.')
 @commands.cooldown(1, 2, commands.BucketType.user)
 async def Continue(ctx):
     voice_client = await join(ctx)
@@ -284,16 +279,16 @@ async def Continue(ctx):
         
     if voice_client.is_paused():
         voice_client.resume()
-        embed = discord.Embed(title='Continuando', colour= discord.Colour.brand_green())
+        embed = discord.Embed(title='Resuming', colour= discord.Colour.brand_green())
         await ctx.send(embed=embed)
         return
     else:
-        embed = discord.Embed(title='Erro', description='Nada pausado no momento', colour=discord.Colour.brand_red())
+        embed = discord.Embed(title='Error', description='No songs paused.', colour=discord.Colour.brand_red())
         await ctx.send(embed=embed)
 
         
            
-@bot.command(name='stop', help='comando usado para parar o bot e limpa a fila de musicas, exemplo: !stop')
+@bot.command(name='stop', help='command used to stop the bot and clear the music queue')
 @commands.cooldown(1, 2, commands.BucketType.user)
 async def stop(ctx):
     voice_client = await join(ctx)
@@ -307,10 +302,10 @@ async def stop(ctx):
         thumb_url.clear()
         voice_client.stop()
         bot.play_status = False
-        embed = discord.Embed(title='Parando', description='Todas as musicas foram removidas da fila', colour=discord.Colour.brand_red())
+        embed = discord.Embed(title='Stopped', description='All songs have been removed from the queue', colour=discord.Colour.brand_red())
         await ctx.send(embed=embed)
     else:
-        embed = discord.Embed(title='Erro', description='Não estou tocando nada', colour=discord.Colour.brand_red())
+        embed = discord.Embed(title='Error', description="i'm not playing anything.", colour=discord.Colour.brand_red())
         await ctx.send(embed=embed)
         
 
@@ -323,10 +318,9 @@ class MyHelp(commands.HelpCommand):
         await self.get_destination().send(embed=embed)
         
     async def send_command_help(self, command):
-        embed = discord.Embed(title=f"Ajuda para: {command.qualified_name}", description=command.help, colour=discord.Colour.gold())
+        embed = discord.Embed(title=f"Help to: {command.qualified_name}", description=command.help, colour=discord.Colour.gold())
         await self.get_destination().send(embed=embed)
         
-
 bot.help_command = MyHelp()
 
 # Run the bot with your token
