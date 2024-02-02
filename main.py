@@ -324,4 +324,4 @@ class MyHelp(commands.HelpCommand):
 bot.help_command = MyHelp()
 
 # Run the bot with your token
-bot.run('MTE5Njg5NzgzMzAzMTMwMzMzOA.GKQTh_.f_l0vYlLYEvfe-sErC4L-9IhYdjubxlipusuzY')
+bot.run('Your_bot_key_here')
